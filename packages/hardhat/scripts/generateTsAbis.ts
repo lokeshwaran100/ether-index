@@ -77,7 +77,8 @@ function getInheritedFunctions(sources: Record<string, any>, contractName: strin
 
 function getContractDataFromDeployments() {
   if (!fs.existsSync(DEPLOYMENTS_DIR)) {
-    throw Error("At least one other deployment script should exist to generate an actual contract.");
+    console.log("Skipping ABI generation: no deployments directory found yet.");
+    return {};
   }
   const output = {} as Record<string, any>;
   const chainDirectories = getDirectories(DEPLOYMENTS_DIR);
@@ -111,6 +112,11 @@ function getContractDataFromDeployments() {
 const generateTsAbis: DeployFunction = async function () {
   const TARGET_DIR = "../nextjs/contracts/";
   const allContractsData = getContractDataFromDeployments();
+
+  if (Object.keys(allContractsData).length === 0) {
+    console.log("No deployments found. Skipping TypeScript contract definition generation.");
+    return;
+  }
 
   const fileContent = Object.entries(allContractsData).reduce((content, [chainId, chainConfig]) => {
     return `${content}${parseInt(chainId).toFixed(0)}:${JSON.stringify(chainConfig, null, 2)},`;

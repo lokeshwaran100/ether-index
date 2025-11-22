@@ -3,15 +3,15 @@ import { DeployFunction } from "hardhat-deploy/types";
 import { Contract, ethers } from "ethers";
 
 /**
- * Deploys the Avanguard Index contracts
+ * Deploys the Ether Index contracts on Ethereum mainnet (or a mainnet fork).
  *
  * @param hre HardhatRuntimeEnvironment object.
  */
-const deployAvanguardIndex: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
+const deployEtherIndex: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   /*
     On localhost, the deployer account is the one that comes with Hardhat, which is already funded.
 
-    When deploying to live networks (e.g `yarn deploy --network sepolia`), the deployer account
+    When deploying to live networks (e.g `yarn deploy --network mainnet`), the deployer account
     should have sufficient balance to pay for the gas fees for contract creation.
 
     You can generate a random account with `yarn generate` or `yarn account:import` to import your
@@ -19,9 +19,9 @@ const deployAvanguardIndex: DeployFunction = async function (hre: HardhatRuntime
     You can run the `yarn account` command to check your balance in every network.
   */
 
-  console.log("🔍 Getting named accounts...");
+  console.log("Getting named accounts...");
   const namedAccounts = await hre.getNamedAccounts();
-  console.log("📋 Named accounts:", namedAccounts);
+  console.log("Named accounts:", namedAccounts);
 
   const { deployer } = namedAccounts;
 
@@ -29,56 +29,43 @@ const deployAvanguardIndex: DeployFunction = async function (hre: HardhatRuntime
     throw new Error("Deployer account is undefined. Check your hardhat configuration.");
   }
 
-  console.log("👤 Deployer address:", deployer);
+  console.log("Deployer address:", deployer);
 
   const { deploy } = hre.deployments;
 
-  console.log("🚀 Deploying Avanguard Index contracts...");
+  console.log("Deploying Ether Index contracts for Ethereum...");
 
-  // Network-specific addresses for Avalanche Fuji and Mainnet
-  // For hardhat fork of mainnet, we should use mainnet addresses
-  const isAvalanche =
-    hre.network.name === "avalanche" ||
-    hre.network.name === "avalancheMainnet" ||
-    (hre.network.name === "hardhat" && hre.network.config.forking?.enabled) ||
-    hre.network.name === "localhost";
+  const isEthereumNetwork =
+    hre.network.name === "mainnet" || hre.network.name === "hardhat" || hre.network.name === "localhost";
 
-  // DEX Router addresses
-  const PANGOLIN_ROUTER = "0x2D99ABD9008Dc933ff5c0CD271B88309593aB921"; // Fuji Pangolin Router
-  const TRADER_JOE_ROUTER = "0x60aE616a2155Ee3d9A68541Ba4544862310933d4"; // Avalanche Mainnet Trader Joe Router
+  if (!isEthereumNetwork) {
+    throw new Error(
+      `Network ${hre.network.name} is not configured. Add router, token, and Chainlink feed addresses for this chain before deploying.`,
+    );
+  }
 
-  // WAVAX addresses
-  const WAVAX_FUJI = "0xd00ae08403B9bbb9124bB305C09058E32C39A48c"; // Fuji WAVAX
-  const WAVAX_MAINNET = "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7"; // Mainnet WAVAX
+  // Ethereum mainnet addresses (checksummed)
+  const UNISWAP_V2_ROUTER = ethers.getAddress("0x7a250d5630b4cf539739df2c5dacb4c659f2488d");
+  const WETH_MAINNET = ethers.getAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
+  const WBTC_MAINNET = ethers.getAddress("0x2260fac5e5542a773aa44fbcfedf7c193bc2c599");
+  const USDC_MAINNET = ethers.getAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
+  const USDT_MAINNET = ethers.getAddress("0xdac17f958d2ee523a2206206994597c13d831ec7");
 
-  // Token addresses for mainnet
-  const BTC_B_MAINNET = "0x152b9d0FdC40C096757F570A51E494bd4b943E50"; // BTC.b
-  const WETH_E_MAINNET = "0x49D5c2BdFfac6CE2BFdB6640F4F80f226bc10bAB"; // WETH.e
-  const USDC_MAINNET = "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"; // USDC
-  const USDT_E_MAINNET = "0xc7198437980c041c805A1EDcbA50c1Ce5db95118"; // USDT.e
+  // Chainlink price feeds on Ethereum mainnet (checksummed)
+  const ETH_USD_FEED = ethers.getAddress("0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419");
+  const BTC_USD_FEED = ethers.getAddress("0xf4030086522a5beea4988f8ca5b36dbc97bee88c");
+  const USDC_USD_FEED = ethers.getAddress("0x8fffffd4afb6115b954bd326cbe7b4ba576818f6");
+  const USDT_USD_FEED = ethers.getAddress("0x3e7d1eab13ad0104d2750b8863b489d65364e32d");
 
-  // Chainlink Price Feed addresses on Avalanche
-  const AVAX_USD_FEED = "0x0A77230d17318075983913bC2145DB16C7366156"; // Mainnet
-  const BTC_USD_FEED = "0x2779D32d5166BAaa2B2b658333bA7e6Ec0C65743"; // Mainnet
-  const ETH_USD_FEED = "0x976B3D034E162d8bD72D6b9C989d545b839003b0"; // Mainnet
-  const USDC_USD_FEED = "0xF096872672F44d6EBA71458D74fe67F9a77a23B9"; // Mainnet
-  const USDT_USD_FEED = "0xEBE676ee90Fe1112671f19b6B7459bC678B67e8a"; // Mainnet
-
-  // Use appropriate addresses based on network
-  const DEX_ROUTER = isAvalanche ? TRADER_JOE_ROUTER : PANGOLIN_ROUTER;
-  const WAVAX_ADDRESS = isAvalanche ? WAVAX_MAINNET : WAVAX_FUJI;
-
-  // Deploy AGI Token
-  console.log("📝 Deploying AGI Token...");
-  const agiToken = await deploy("AGIToken", {
+  console.log("Deploying ETI Token...");
+  const etiToken = await deploy("ETIToken", {
     from: deployer,
     args: [deployer],
     log: true,
     autoMine: true,
   });
 
-  // Deploy Chainlink Oracle (used as price feed source)
-  console.log("🔮 Deploying Chainlink Oracle...");
+  console.log("Deploying Chainlink Oracle...");
   const chainlinkOracle = await deploy("ChainlinkOracle", {
     from: deployer,
     args: [],
@@ -86,46 +73,37 @@ const deployAvanguardIndex: DeployFunction = async function (hre: HardhatRuntime
     autoMine: true,
   });
 
-  // Deploy Fund Factory
-  console.log("🏭 Deploying Fund Factory...");
+  console.log("Deploying Fund Factory...");
   const fundFactory = await deploy("FundFactory", {
     from: deployer,
-    // FundFactory(agi, oracle, treasury, dex, wavax, initialOwner)
-    args: [agiToken.address, chainlinkOracle.address, deployer, DEX_ROUTER, WAVAX_ADDRESS, deployer],
+    // FundFactory(eti, oracle, treasury, dex, wrappedNative, initialOwner)
+    args: [etiToken.address, chainlinkOracle.address, deployer, UNISWAP_V2_ROUTER, WETH_MAINNET, deployer],
     log: true,
     autoMine: true,
   });
 
-  // Configure Chainlink price feeds
-  console.log("💰 Configuring Chainlink price feeds...");
+  console.log("Configuring Chainlink price feeds...");
   const oracleContract = await hre.ethers.getContract<Contract>("ChainlinkOracle", deployer);
 
-  if (isAvalanche) {
-    // Configure price feeds for Avalanche mainnet
-    await oracleContract.setPriceFeed(ethers.ZeroAddress, AVAX_USD_FEED); // AVAX/USD
-    await oracleContract.setPriceFeed(WAVAX_MAINNET, AVAX_USD_FEED); // WAVAX/USD (same as AVAX)
-    await oracleContract.setPriceFeed(BTC_B_MAINNET, BTC_USD_FEED); // BTC.b/USD
-    await oracleContract.setPriceFeed(WETH_E_MAINNET, ETH_USD_FEED); // WETH.e/USD
-    await oracleContract.setPriceFeed(USDC_MAINNET, USDC_USD_FEED); // USDC/USD
-    await oracleContract.setPriceFeed(USDT_E_MAINNET, USDT_USD_FEED); // USDT.e/USD
-    console.log("  - Configured price feeds for AVAX, WAVAX, BTC.b, WETH.e, USDC, and USDT.e on Avalanche mainnet");
-  } else {
-    // For Fuji testnet, we could deploy mock price feeds or use existing ones
-    console.log("  - ChainlinkOracle deployed on Fuji testnet (price feeds need manual configuration)");
-  }
+  await oracleContract.setPriceFeed(ethers.ZeroAddress, ETH_USD_FEED); // ETH/USD
+  await oracleContract.setPriceFeed(WETH_MAINNET, ETH_USD_FEED); // WETH/USD (same as ETH)
+  await oracleContract.setPriceFeed(WBTC_MAINNET, BTC_USD_FEED); // WBTC/USD
+  await oracleContract.setPriceFeed(USDC_MAINNET, USDC_USD_FEED); // USDC/USD
+  await oracleContract.setPriceFeed(USDT_MAINNET, USDT_USD_FEED); // USDT/USD
+  console.log("  - Price feeds set for ETH, WETH, WBTC, USDC, and USDT on Ethereum mainnet (or fork).");
 
-  console.log("✅ Avanguard Index contracts deployed successfully!");
-  console.log("📊 AGI Token:", agiToken.address);
-  console.log("🔮 Chainlink Oracle:", chainlinkOracle.address);
-  console.log("🔄 DEX Router:", DEX_ROUTER);
-  console.log("🌊 WAVAX:", WAVAX_ADDRESS);
-  console.log("🏭 Fund Factory:", fundFactory.address);
-  console.log("🌐 Network:", hre.network.name);
-  console.log("📋 Deployer:", deployer);
+  console.log("Ether Index contracts deployed successfully.");
+  console.log("ETI Token:", etiToken.address);
+  console.log("Chainlink Oracle:", chainlinkOracle.address);
+  console.log("DEX Router (Uniswap V2):", UNISWAP_V2_ROUTER);
+  console.log("WETH:", WETH_MAINNET);
+  console.log("Fund Factory:", fundFactory.address);
+  console.log("Network:", hre.network.name);
+  console.log("Deployer:", deployer);
 };
 
-export default deployAvanguardIndex;
+export default deployEtherIndex;
 
 // Tags are useful if you have multiple deploy files and only want to run one of them.
-// e.g. yarn deploy --tags AvanguardIndex
-deployAvanguardIndex.tags = ["AvanguardIndex"];
+// e.g. yarn deploy --tags EtherIndex
+deployEtherIndex.tags = ["EtherIndex"];

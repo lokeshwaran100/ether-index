@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./Fund.sol";
+import "./EtherIndexFund.sol";
 import "./ETIToken.sol";
 
 /**
@@ -21,8 +21,8 @@ contract FundFactory is Ownable {
     address public wavax;
     
     // Fund tracking
-    Fund[] public funds;
-    mapping(uint256 => Fund) public fundById;
+    EtherIndexFund[] public etherIndexFunds;
+    mapping(uint256 => EtherIndexFund) public fundById;
     mapping(address => uint256[]) public creatorFunds;
     
     // Events
@@ -89,7 +89,7 @@ contract FundFactory is Ownable {
         etiToken.burnFrom(msg.sender, FUND_CREATION_FEE);
         
         // Create new fund
-        Fund newFund = new Fund(
+        EtherIndexFund newFund = new EtherIndexFund(
             fundName,
             fundTicker,
             tokens,
@@ -101,8 +101,8 @@ contract FundFactory is Ownable {
         );
         
         // Track the fund
-        uint256 fundId = funds.length;
-        funds.push(newFund);
+        uint256 fundId = etherIndexFunds.length;
+        etherIndexFunds.push(newFund);
         fundById[fundId] = newFund;
         creatorFunds[msg.sender].push(fundId);
         
@@ -130,8 +130,8 @@ contract FundFactory is Ownable {
         string memory fundTicker,
         address[] memory underlyingTokens
     ) {
-        require(fundId < funds.length, "Fund does not exist");
-        Fund fund = funds[fundId];
+        require(fundId < etherIndexFunds.length, "Fund does not exist");
+        EtherIndexFund fund = etherIndexFunds[fundId];
         fundAddress = address(fund);
         fundName = fund.fundName();
         fundTicker = fund.fundTicker();
@@ -152,7 +152,7 @@ contract FundFactory is Ownable {
      * @return Total number of funds created
      */
     function getTotalFunds() external view returns (uint256) {
-        return funds.length;
+        return etherIndexFunds.length;
     }
     
     /**
@@ -162,15 +162,15 @@ contract FundFactory is Ownable {
      * @return Array of fund addresses
      */
     function getFunds(uint256 startIndex, uint256 endIndex) external view returns (address[] memory) {
-        require(startIndex < funds.length, "Start index out of bounds");
-        require(endIndex <= funds.length, "End index out of bounds");
+        require(startIndex < etherIndexFunds.length, "Start index out of bounds");
+        require(endIndex <= etherIndexFunds.length, "End index out of bounds");
         require(startIndex <= endIndex, "Invalid index range");
         
         uint256 count = endIndex - startIndex;
         address[] memory fundAddresses = new address[](count);
         
         for (uint256 i = 0; i < count; i++) {
-            fundAddresses[i] = address(funds[startIndex + i]);
+            fundAddresses[i] = address(etherIndexFunds[startIndex + i]);
         }
         
         return fundAddresses;

@@ -26,7 +26,7 @@ interface IJoeRouter {
  * Fund Contract - Manages individual index funds
  * @author Ether Index
  */
-contract Fund is ERC20, Ownable {
+contract EtherIndexFund is ERC20, Ownable {
     // Fund metadata
     string public fundName;
     string public fundTicker;

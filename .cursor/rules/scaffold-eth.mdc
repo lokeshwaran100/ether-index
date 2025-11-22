@@ -37,7 +37,7 @@ Use the `useScaffoldReadContract` (`packages/nextjs/hooks/scaffold-eth/useScaffo
 Example:
 ```typescript
 const { data: someData } = useScaffoldReadContract({
-  contractName: "YourContract",
+  contractName: "EtherIndexFund",
   functionName: "functionName",
   args: [arg1, arg2], // optional
 });
@@ -50,8 +50,8 @@ Use the `useScaffoldWriteContract` (`packages/nextjs/hooks/scaffold-eth/useScaff
 
 Example:
 ```typescript
-const { writeContractAsync: writeYourContractAsync } = useScaffoldWriteContract(
-  { contractName: "YourContract" }
+const { writeContractAsync: writeEtherIndexFundAsync } = useScaffoldWriteContract(
+  { contractName: "EtherIndexFund" }
 );
 // Usage (this will send a write transaction to the contract)
 await writeContractAsync({
@@ -77,7 +77,7 @@ const {
   isLoading,
   error,
 } = useScaffoldEventHistory({
-  contractName: "YourContract",
+  contractName: "EtherIndexFund",
   eventName: "GreetingChange",
   watch: true, // optional, if true, the hook will watch for new events
 });
