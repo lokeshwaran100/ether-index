@@ -9,6 +9,7 @@
 import * as fs from "fs";
 import prettier from "prettier";
 import { DeployFunction } from "hardhat-deploy/types";
+import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 const generatedContractComment = `
 /**
@@ -39,7 +40,7 @@ function getActualSourcesForContract(sources: Record<string, any>, contractName:
     const sourceName = sourcePath.split("/").pop()?.split(".sol")[0];
     if (sourceName === contractName) {
       const contractContent = sources[sourcePath].content as string;
-      const regex = /contract\s+(\w+)\s+is\s+([^{}]+)\{/;
+      const regex = /contract\\s+(\\w+)\\s+is\\s+([^{}]+)\\{/;
       const match = contractContent.match(regex);
 
       if (match) {
@@ -109,9 +110,28 @@ function getContractDataFromDeployments() {
  * Generates the TypeScript contract definition file based on the json output of the contract deployment scripts
  * This script should be run last.
  */
-const generateTsAbis: DeployFunction = async function () {
+const generateTsAbis: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const TARGET_DIR = "../nextjs/contracts/";
-  const allContractsData = getContractDataFromDeployments();
+  let allContractsData = getContractDataFromDeployments();
+
+  // Fallback: if deployments are not written to disk (e.g., hardhat in-memory), use in-memory deployments.
+  if (Object.keys(allContractsData).length === 0 && hre?.deployments) {
+    const inMemoryDeployments = await hre.deployments.all();
+    const chainId = await hre.getChainId();
+
+    if (Object.keys(inMemoryDeployments).length > 0) {
+      const contracts: Record<string, any> = {};
+      for (const [name, deployment] of Object.entries(inMemoryDeployments)) {
+        contracts[name] = {
+          address: deployment.address,
+          abi: deployment.abi,
+          inheritedFunctions: {}, // not available from in-memory deployments
+          deployedOnBlock: deployment.receipt?.blockNumber,
+        };
+      }
+      allContractsData = { [chainId]: contracts };
+    }
+  }
 
   if (Object.keys(allContractsData).length === 0) {
     console.log("No deployments found. Skipping TypeScript contract definition generation.");
@@ -128,15 +148,14 @@ const generateTsAbis: DeployFunction = async function () {
   fs.writeFileSync(
     `${TARGET_DIR}deployedContracts.ts`,
     await prettier.format(
-      `${generatedContractComment} import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract"; \n\n
- const deployedContracts = {${fileContent}} as const; \n\n export default deployedContracts satisfies GenericContractsDeclaration`,
+      `${generatedContractComment} import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract"; \n\n const deployedContracts = {${fileContent}} as const; \n\n export default deployedContracts satisfies GenericContractsDeclaration`,
       {
         parser: "typescript",
       },
     ),
   );
 
-  console.log(`📝 Updated TypeScript contract definition file on ${TARGET_DIR}deployedContracts.ts`);
+  console.log(`Updated TypeScript contract definition file on ${TARGET_DIR}deployedContracts.ts`);
 };
 
 export default generateTsAbis;
