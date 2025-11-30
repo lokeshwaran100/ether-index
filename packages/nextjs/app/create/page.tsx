@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Address, AddressInput } from "@scaffold-ui/components";
 import type { NextPage } from "next";
-import { formatEther, isAddress, parseEther } from "viem";
+import { formatEther, isAddress } from "viem";
 import { useAccount } from "wagmi";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
-import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { useDeployedContractInfo, useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 import { notification } from "~~/utils/scaffold-eth";
 
 type TokenComponent = {
@@ -35,6 +35,10 @@ const CreateFund: NextPage = () => {
   const { data: creationFee } = useScaffoldReadContract({
     contractName: "FundFactory",
     functionName: "creationFee",
+  });
+
+  const { data: fundFactoryContract } = useDeployedContractInfo({
+    contractName: "FundFactory",
   });
 
   const { writeContractAsync: approveETI, isMining: isApproving } = useScaffoldWriteContract({
@@ -119,13 +123,15 @@ const CreateFund: NextPage = () => {
       return;
     }
 
-    try {
-      // Get FundFactory address from deployed contracts
-      const factoryAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"; // Update this with actual deployed address
+    if (!fundFactoryContract?.address) {
+      notification.error("FundFactory contract not found on this network");
+      return;
+    }
 
+    try {
       await approveETI({
         functionName: "approve",
-        args: [factoryAddress as `0x${string}`, creationFee],
+        args: [fundFactoryContract.address, creationFee],
       });
 
       notification.success("ETI approved! You can now create the fund.");
