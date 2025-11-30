@@ -1,75 +1,85 @@
 "use client";
 
 import Link from "next/link";
-import { Address } from "@scaffold-ui/components";
 import type { NextPage } from "next";
-import { hardhat } from "viem/chains";
-import { useAccount } from "wagmi";
-import { BugAntIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { ArrowRightIcon, ChartBarIcon, CurrencyDollarIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
 
 const Home: NextPage = () => {
-  const { address: connectedAddress } = useAccount();
-  const { targetNetwork } = useTargetNetwork();
-
   return (
     <>
       <div className="flex items-center flex-col grow pt-10">
-        <div className="px-5">
-          <h1 className="text-center">
-            <span className="block text-2xl mb-2">Welcome to</span>
-            <span className="block text-4xl font-bold">Scaffold-ETH 2</span>
-          </h1>
-          <div className="flex justify-center items-center space-x-2 flex-col">
-            <p className="my-2 font-medium">Connected Address:</p>
-            <Address
-              address={connectedAddress}
-              chain={targetNetwork}
-              blockExplorerAddressLink={
-                targetNetwork.id === hardhat.id ? `/blockexplorer/address/${connectedAddress}` : undefined
-              }
-            />
+        <div className="px-5 max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h1 className="text-5xl font-bold mb-4">Ether Index</h1>
+            <p className="text-2xl text-base-content/70 mb-8">
+              Create and invest in on-chain crypto index funds with ETH and Web2-style login
+            </p>
+            <div className="flex gap-4 justify-center flex-wrap">
+              <Link href="/funds" passHref className="btn btn-primary btn-lg gap-2">
+                Explore Funds
+                <ArrowRightIcon className="h-5 w-5" />
+              </Link>
+              <Link href="/create" passHref className="btn btn-secondary btn-lg gap-2">
+                Create Fund
+                <ChartBarIcon className="h-5 w-5" />
+              </Link>
+            </div>
           </div>
 
-          <p className="text-center text-lg">
-            Get started by editing{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/nextjs/app/page.tsx
-            </code>
-          </p>
-          <p className="text-center text-lg">
-            Edit your smart contract{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              EtherIndexFund.sol
-            </code>{" "}
-            in{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/hardhat/contracts
-            </code>
-          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+            <div className="card bg-base-100 shadow-xl">
+              <div className="card-body items-center text-center">
+                <ShieldCheckIcon className="h-12 w-12 text-primary mb-2" />
+                <h3 className="card-title">Login with Gmail</h3>
+                <p>Use MetaMask Embedded Wallet for seamless Web2-style login experience</p>
+              </div>
+            </div>
+            <div className="card bg-base-100 shadow-xl">
+              <div className="card-body items-center text-center">
+                <CurrencyDollarIcon className="h-12 w-12 text-primary mb-2" />
+                <h3 className="card-title">ETH-only Deposits</h3>
+                <p>Simple ETH deposits to get instant exposure to diversified token baskets</p>
+              </div>
+            </div>
+            <div className="card bg-base-100 shadow-xl">
+              <div className="card-body items-center text-center">
+                <ChartBarIcon className="h-12 w-12 text-primary mb-2" />
+                <h3 className="card-title">Manual Rebalancing</h3>
+                <p>Fund creators control rebalancing to maintain optimal portfolio weights</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="grow bg-base-300 w-full mt-16 px-8 py-12">
-          <div className="flex justify-center items-center gap-12 flex-col md:flex-row">
-            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
-              <BugAntIcon className="h-8 w-8 fill-secondary" />
-              <p>
-                Tinker with your smart contract using the{" "}
-                <Link href="/debug" passHref className="link">
-                  Debug Contracts
-                </Link>{" "}
-                tab.
-              </p>
-            </div>
-            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
-              <MagnifyingGlassIcon className="h-8 w-8 fill-secondary" />
-              <p>
-                Explore your local transactions with the{" "}
-                <Link href="/blockexplorer" passHref className="link">
-                  Block Explorer
-                </Link>{" "}
-                tab.
-              </p>
+        <div className="bg-base-300 w-full px-8 py-16">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-3xl font-bold text-center mb-8">How It Works</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-full bg-primary text-primary-content flex items-center justify-center text-2xl font-bold mb-4">
+                  1
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Login with Gmail</h3>
+                <p className="text-base-content/70">Connect using MetaMask Embedded Wallet for a seamless experience</p>
+              </div>
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-full bg-primary text-primary-content flex items-center justify-center text-2xl font-bold mb-4">
+                  2
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Choose or Create</h3>
+                <p className="text-base-content/70">
+                  Browse existing index funds or create your own custom portfolio
+                </p>
+              </div>
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-full bg-primary text-primary-content flex items-center justify-center text-2xl font-bold mb-4">
+                  3
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Deposit ETH</h3>
+                <p className="text-base-content/70">
+                  Invest ETH to receive index fund shares representing your diversified position
+                </p>
+              </div>
             </div>
           </div>
         </div>
