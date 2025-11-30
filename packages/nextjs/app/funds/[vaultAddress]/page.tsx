@@ -1,73 +1,131 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Address } from "@scaffold-ui/components";
+import { Address as AddressDisplay } from "@scaffold-ui/components";
 import type { NextPage } from "next";
-import { formatEther, parseEther } from "viem";
-import { useAccount } from "wagmi";
+import { Abi, Address, formatEther, isAddress, parseEther } from "viem";
+import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
-import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { useSelectedNetwork } from "~~/hooks/scaffold-eth";
 import { notification } from "~~/utils/scaffold-eth";
+import { contracts } from "~~/utils/scaffold-eth/contract";
 
 type PageProps = {
   params: Promise<{ vaultAddress: string }>;
 };
 
-const FundDetail: NextPage<PageProps> = (props) => {
-  const params = use(props.params);
-  const vaultAddress = params.vaultAddress as `0x${string}`;
-  const { address: connectedAddress } = useAccount();
+type StoredFund = {
+  fundName?: string;
+  fundTicker?: string;
+  underlyingTokens?: string[];
+  creator?: string;
+};
+
+const FundDetail: NextPage<PageProps> = ({ params }) => {
+  const { vaultAddress } = use(params);
+  const vaultAddressChecked = vaultAddress as Address;
+  const { address: connectedAddress, chain } = useAccount();
+  const selectedNetwork = useSelectedNetwork();
+  const etherIndexFundAbi = contracts?.[selectedNetwork.id]?.EtherIndexFund?.abi as Abi | undefined;
+  const fundAbi = (etherIndexFundAbi ?? []) as Abi;
+  const etiTokenAbi = contracts?.[selectedNetwork.id]?.ETIToken?.abi as Abi | undefined;
+  const etiTokenAddress = contracts?.[selectedNetwork.id]?.ETIToken?.address as Address | undefined;
+  const enabledFundReads = Boolean(etherIndexFundAbi && isAddress(vaultAddressChecked));
 
   const [depositAmount, setDepositAmount] = useState("");
   const [redeemAmount, setRedeemAmount] = useState("");
+  const [storedFund, setStoredFund] = useState<StoredFund | null>(null);
 
-  const { data: fundName } = useScaffoldReadContract({
-    contractName: "EtherIndexFund",
+  useEffect(() => {
+    const loadStoredFund = async () => {
+      try {
+        const res = await fetch(`/api/funds/${vaultAddress}?chainId=${selectedNetwork.id}`);
+        const json = await res.json();
+        setStoredFund(json?.fund ?? null);
+      } catch (error) {
+        console.error("Failed to load stored fund", error);
+      }
+    };
+
+    if (isAddress(vaultAddressChecked)) {
+      loadStoredFund();
+    }
+  }, [vaultAddressChecked, selectedNetwork.id]);
+
+  const { data: fundNameData } = useReadContract({
+    address: vaultAddressChecked,
+    abi: fundAbi,
     functionName: "fundName",
+    chainId: selectedNetwork.id,
+    query: { enabled: enabledFundReads },
   });
 
-  const { data: fundSymbol } = useScaffoldReadContract({
-    contractName: "EtherIndexFund",
+  const { data: fundSymbolData } = useReadContract({
+    address: vaultAddressChecked,
+    abi: fundAbi,
     functionName: "fundTicker",
+    chainId: selectedNetwork.id,
+    query: { enabled: enabledFundReads },
   });
 
-  const { data: creator } = useScaffoldReadContract({
-    contractName: "EtherIndexFund",
+  const { data: creatorData } = useReadContract({
+    address: vaultAddressChecked,
+    abi: fundAbi,
     functionName: "creator",
+    chainId: selectedNetwork.id,
+    query: { enabled: enabledFundReads },
   });
 
-  const { data: fundValue } = useScaffoldReadContract({
-    contractName: "EtherIndexFund",
+  const { data: fundValueData } = useReadContract({
+    address: vaultAddressChecked,
+    abi: fundAbi,
     functionName: "getCurrentFundValue",
+    chainId: selectedNetwork.id,
+    query: { enabled: enabledFundReads },
   });
 
-  const { data: underlyingTokens } = useScaffoldReadContract({
-    contractName: "EtherIndexFund",
+  const { data: underlyingTokensData } = useReadContract({
+    address: vaultAddressChecked,
+    abi: fundAbi,
     functionName: "getUnderlyingTokens",
+    chainId: selectedNetwork.id,
+    query: { enabled: enabledFundReads },
   });
 
-  const { data: userBalance } = useScaffoldReadContract({
-    contractName: "EtherIndexFund",
+  const { data: userBalanceData } = useReadContract({
+    address: vaultAddressChecked,
+    abi: fundAbi,
     functionName: "fundTokenBalanceOf",
-    args: connectedAddress ? [connectedAddress] : undefined,
+    args: connectedAddress ? [connectedAddress as Address] : undefined,
+    chainId: selectedNetwork.id,
+    query: { enabled: enabledFundReads && Boolean(connectedAddress) },
   });
 
-  const { data: etiBalance } = useScaffoldReadContract({
-    contractName: "ETIToken",
+  const { data: etiBalanceData } = useReadContract({
+    address: etiTokenAddress,
+    abi: etiTokenAbi,
     functionName: "balanceOf",
-    args: creator ? [creator] : undefined,
+    args: creatorData ? [creatorData as Address] : undefined,
+    chainId: selectedNetwork.id,
+    query: { enabled: Boolean(etiTokenAbi && etiTokenAddress && creatorData) },
   });
 
-  const { writeContractAsync: writeDeposit, isMining: isDepositing } = useScaffoldWriteContract({
-    contractName: "EtherIndexFund",
-  });
+  const { writeContractAsync: writeDeposit, isPending: isDepositing } = useWriteContract();
+  const { writeContractAsync: writeRedeem, isPending: isRedeeming } = useWriteContract();
 
-  const { writeContractAsync: writeRedeem, isMining: isRedeeming } = useScaffoldWriteContract({
-    contractName: "EtherIndexFund",
-  });
+  const fundName = fundNameData as string | undefined;
+  const fundSymbol = fundSymbolData as string | undefined;
+  const creator = creatorData as string | undefined;
+  const fundValue = fundValueData as bigint | undefined;
+  const underlyingTokens = Array.isArray(underlyingTokensData)
+    ? (underlyingTokensData as string[])
+    : ((storedFund?.underlyingTokens as string[] | undefined) ?? []);
+  const userBalance = userBalanceData as bigint | undefined;
+  const etiBalance = etiBalanceData as bigint | undefined;
 
-  const isCreator = connectedAddress && creator && connectedAddress.toLowerCase() === creator.toLowerCase();
+  const isCreator = connectedAddress && creator && connectedAddress.toLowerCase() === (creator as string).toLowerCase();
+  const displayedTokens = useMemo(() => underlyingTokens, [underlyingTokens]);
 
   const handleDeposit = async () => {
     if (!depositAmount || parseFloat(depositAmount) <= 0) {
@@ -75,10 +133,23 @@ const FundDetail: NextPage<PageProps> = (props) => {
       return;
     }
 
+    if (!etherIndexFundAbi) {
+      notification.error("Fund ABI not available for this network");
+      return;
+    }
+
+    if (chain?.id !== selectedNetwork.id) {
+      notification.error(`Wallet is connected to the wrong network. Please switch to ${selectedNetwork.name}`);
+      return;
+    }
+
     try {
       await writeDeposit({
+        address: vaultAddressChecked,
+        abi: fundAbi,
         functionName: "buy",
         value: parseEther(depositAmount),
+        chainId: selectedNetwork.id,
       });
       setDepositAmount("");
       notification.success("Deposit successful!");
@@ -93,10 +164,23 @@ const FundDetail: NextPage<PageProps> = (props) => {
       return;
     }
 
+    if (!etherIndexFundAbi) {
+      notification.error("Fund ABI not available for this network");
+      return;
+    }
+
+    if (chain?.id !== selectedNetwork.id) {
+      notification.error(`Wallet is connected to the wrong network. Please switch to ${selectedNetwork.name}`);
+      return;
+    }
+
     try {
       await writeRedeem({
+        address: vaultAddressChecked,
+        abi: fundAbi,
         functionName: "sell",
         args: [parseEther(redeemAmount)],
+        chainId: selectedNetwork.id,
       });
       setRedeemAmount("");
       notification.success("Redemption successful!");
@@ -113,11 +197,11 @@ const FundDetail: NextPage<PageProps> = (props) => {
       </Link>
 
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">{fundName || "Loading..."}</h1>
-        <p className="text-xl text-base-content/70">{fundSymbol || ""}</p>
+        <h1 className="text-4xl font-bold mb-2">{fundName || storedFund?.fundName || "Loading..."}</h1>
+        <p className="text-xl text-base-content/70">{fundSymbol || storedFund?.fundTicker || ""}</p>
         <div className="mt-2">
           <span className="text-sm text-base-content/70">Creator: </span>
-          <Address address={creator} />
+          <AddressDisplay address={(creator as string) || storedFund?.creator} />
         </div>
       </div>
 
@@ -132,13 +216,13 @@ const FundDetail: NextPage<PageProps> = (props) => {
           <div className="card-body">
             <h3 className="card-title text-lg">Your Balance</h3>
             <p className="text-3xl font-bold">{userBalance ? formatEther(userBalance) : "0"}</p>
-            <p className="text-sm text-base-content/70">{fundSymbol} shares</p>
+            <p className="text-sm text-base-content/70">{fundSymbol || storedFund?.fundTicker || ""} shares</p>
           </div>
         </div>
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
             <h3 className="card-title text-lg">Components</h3>
-            <p className="text-3xl font-bold">{underlyingTokens?.length || 0}</p>
+            <p className="text-3xl font-bold">{displayedTokens?.length || 0}</p>
             <p className="text-sm text-base-content/70">tokens</p>
           </div>
         </div>
@@ -157,7 +241,7 @@ const FundDetail: NextPage<PageProps> = (props) => {
                 placeholder="0.0"
                 className="input input-bordered"
                 value={depositAmount}
-                onChange={(e) => setDepositAmount(e.target.value)}
+                onChange={e => setDepositAmount(e.target.value)}
                 step="0.01"
                 min="0"
               />
@@ -184,7 +268,7 @@ const FundDetail: NextPage<PageProps> = (props) => {
                 placeholder="0.0"
                 className="input input-bordered"
                 value={redeemAmount}
-                onChange={(e) => setRedeemAmount(e.target.value)}
+                onChange={e => setRedeemAmount(e.target.value)}
                 step="0.01"
                 min="0"
               />
@@ -203,7 +287,7 @@ const FundDetail: NextPage<PageProps> = (props) => {
       <div className="card bg-base-100 shadow-xl mb-8">
         <div className="card-body">
           <h2 className="card-title">Fund Components</h2>
-          {underlyingTokens && underlyingTokens.length > 0 ? (
+          {displayedTokens && displayedTokens.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="table">
                 <thead>
@@ -213,13 +297,13 @@ const FundDetail: NextPage<PageProps> = (props) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {underlyingTokens.map((token, index) => (
+                  {displayedTokens.map((token, index) => (
                     <tr key={index}>
                       <td>
-                        <Address address={token} />
+                        <AddressDisplay address={token} />
                       </td>
                       <td>
-                        <TokenWeight tokenAddress={token} />
+                        <TokenWeight tokenAddress={token} fundAddress={vaultAddressChecked} />
                       </td>
                     </tr>
                   ))}
@@ -237,9 +321,7 @@ const FundDetail: NextPage<PageProps> = (props) => {
           <div className="card-body">
             <h2 className="card-title">Creator Actions</h2>
             <div className="alert alert-info mb-4">
-              <span>
-                Your ETI Balance: {etiBalance ? formatEther(etiBalance) : "0"} ETI
-              </span>
+              <span>Your ETI Balance: {etiBalance ? formatEther(etiBalance) : "0"} ETI</span>
             </div>
             <div className="alert alert-warning">
               <span>
@@ -257,11 +339,19 @@ const FundDetail: NextPage<PageProps> = (props) => {
   );
 };
 
-function TokenWeight({ tokenAddress }: { tokenAddress: string }) {
-  const { data: proportion } = useScaffoldReadContract({
-    contractName: "EtherIndexFund",
+function TokenWeight({ tokenAddress, fundAddress }: { tokenAddress: string; fundAddress: Address }) {
+  const selectedNetwork = useSelectedNetwork();
+  const etherIndexFundAbi = contracts?.[selectedNetwork.id]?.EtherIndexFund?.abi as Abi | undefined;
+  const fundAbi = (etherIndexFundAbi ?? []) as Abi;
+  const enabled = Boolean(etherIndexFundAbi);
+
+  const { data: proportion } = useReadContract({
+    address: fundAddress,
+    abi: fundAbi,
     functionName: "targetProportions",
-    args: [tokenAddress as `0x${string}`],
+    args: [tokenAddress as Address],
+    chainId: selectedNetwork.id,
+    query: { enabled },
   });
 
   return <span>{proportion ? `${proportion}%` : "Loading..."}</span>;

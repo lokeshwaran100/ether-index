@@ -1,30 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { NextPage } from "next";
-import { formatEther } from "viem";
-import { useScaffoldReadContract } from "~~/hooks/scaffold-eth";
+import { Abi, Address, formatEther } from "viem";
+import { useReadContract } from "wagmi";
+import { useSelectedNetwork } from "~~/hooks/scaffold-eth";
+import { contracts } from "~~/utils/scaffold-eth/contract";
+
+type StoredFund = {
+  fundId?: number;
+  fundAddress: string;
+  fundName: string;
+  fundTicker: string;
+  creator: string;
+  chainId: number;
+  underlyingTokens?: string[];
+  txHash?: string;
+};
 
 const Funds: NextPage = () => {
-  const { data: fundsLength } = useScaffoldReadContract({
-    contractName: "FundFactory",
-    functionName: "getTotalFunds",
-  });
+  const selectedNetwork = useSelectedNetwork();
+  const [funds, setFunds] = useState<StoredFund[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const fundsCount = Number(fundsLength || 0n);
-  const fundIndices = Array.from({ length: fundsCount }, (_, i) => i);
+  useEffect(() => {
+    const loadFunds = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/funds?chainId=${selectedNetwork.id}`);
+        const json = await res.json();
+        setFunds(json?.funds ?? []);
+      } catch (error) {
+        console.error("Failed to load funds", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadFunds();
+  }, [selectedNetwork.id]);
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2">Index Funds</h1>
-        <p className="text-xl text-base-content/70">
-          Browse and invest in decentralized index funds
-        </p>
+        <p className="text-xl text-base-content/70">Browse and invest in decentralized index funds</p>
       </div>
 
-      {fundsCount === 0 ? (
+      {isLoading ? (
+        <div className="text-center py-12">
+          <p className="text-xl text-base-content/70 mb-4">Loading funds...</p>
+        </div>
+      ) : funds.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-xl text-base-content/70 mb-4">No funds created yet</p>
           <Link href="/create" className="btn btn-primary">
@@ -33,8 +61,8 @@ const Funds: NextPage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {fundIndices.map(index => (
-            <FundCard key={index} fundIndex={BigInt(index)} />
+          {funds.map(fund => (
+            <FundCard key={`${fund.chainId}-${fund.fundAddress}`} fund={fund} />
           ))}
         </div>
       )}
@@ -42,51 +70,53 @@ const Funds: NextPage = () => {
   );
 };
 
-function FundCard({ fundIndex }: { fundIndex: bigint }) {
-  const { data: fundAddress } = useScaffoldReadContract({
-    contractName: "FundFactory",
-    functionName: "etherIndexFunds",
-    args: [fundIndex],
-  });
-
-  if (!fundAddress) {
-    return (
-      <div className="card bg-base-100 shadow-xl animate-pulse">
-        <div className="card-body">
-          <div className="h-6 bg-base-300 rounded w-3/4"></div>
-          <div className="h-4 bg-base-300 rounded w-1/2 mt-2"></div>
-        </div>
-      </div>
-    );
-  }
-
-  return <FundCardDetails fundAddress={fundAddress} />;
+function FundCard({ fund }: { fund: StoredFund }) {
+  return <FundCardDetails fund={fund} />;
 }
 
-function FundCardDetails({ fundAddress }: { fundAddress: string }) {
-  const { data: fundName } = useScaffoldReadContract({
-    contractName: "EtherIndexFund",
+function FundCardDetails({ fund }: { fund: StoredFund }) {
+  const selectedNetwork = useSelectedNetwork();
+  const etherIndexFundAbi = contracts?.[selectedNetwork.id]?.EtherIndexFund?.abi as Abi | undefined;
+  const fundAbi = (etherIndexFundAbi ?? []) as Abi;
+  const address = fund.fundAddress as Address;
+  const enabled = Boolean(etherIndexFundAbi);
+
+  const { data: fundNameData } = useReadContract({
+    address,
+    abi: fundAbi,
     functionName: "fundName",
-    args: undefined,
+    chainId: selectedNetwork.id,
+    query: { enabled },
   });
 
-  const { data: fundSymbol } = useScaffoldReadContract({
-    contractName: "EtherIndexFund",
+  const { data: fundSymbolData } = useReadContract({
+    address,
+    abi: fundAbi,
     functionName: "fundTicker",
-    args: undefined,
+    chainId: selectedNetwork.id,
+    query: { enabled },
   });
 
-  const { data: fundValue } = useScaffoldReadContract({
-    contractName: "EtherIndexFund",
+  const { data: fundValueData } = useReadContract({
+    address,
+    abi: fundAbi,
     functionName: "getCurrentFundValue",
-    args: undefined,
+    chainId: selectedNetwork.id,
+    query: { enabled },
   });
 
-  const { data: totalSupply } = useScaffoldReadContract({
-    contractName: "EtherIndexFund",
+  const { data: totalSupplyData } = useReadContract({
+    address,
+    abi: fundAbi,
     functionName: "totalSupply",
-    args: undefined,
+    chainId: selectedNetwork.id,
+    query: { enabled },
   });
+
+  const fundNameValue = fundNameData as string | undefined;
+  const fundSymbolValue = fundSymbolData as string | undefined;
+  const fundValue = fundValueData as bigint | undefined;
+  const totalSupply = totalSupplyData as bigint | undefined;
 
   const tvl = fundValue ? formatEther(fundValue) : "0";
   const supply = totalSupply ? formatEther(totalSupply) : "0";
@@ -94,8 +124,8 @@ function FundCardDetails({ fundAddress }: { fundAddress: string }) {
   return (
     <div className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow">
       <div className="card-body">
-        <h2 className="card-title">{fundName || "Loading..."}</h2>
-        <p className="text-sm text-base-content/70">{fundSymbol || ""}</p>
+        <h2 className="card-title">{fundNameValue || fund.fundName || "Loading..."}</h2>
+        <p className="text-sm text-base-content/70">{fundSymbolValue || fund.fundTicker || ""}</p>
 
         <div className="divider my-2"></div>
 
@@ -111,10 +141,7 @@ function FundCardDetails({ fundAddress }: { fundAddress: string }) {
         </div>
 
         <div className="card-actions justify-end mt-4">
-          <Link
-            href={`/funds/${fundAddress}`}
-            className="btn btn-primary btn-sm"
-          >
+          <Link href={`/funds/${fund.fundAddress}`} className="btn btn-primary btn-sm">
             View Details
           </Link>
         </div>

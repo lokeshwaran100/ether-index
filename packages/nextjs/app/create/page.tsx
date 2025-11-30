@@ -4,11 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Address, AddressInput } from "@scaffold-ui/components";
 import type { NextPage } from "next";
-import { formatEther, isAddress } from "viem";
+import { Abi, formatEther, isAddress, parseEventLogs } from "viem";
 import { useAccount } from "wagmi";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useDeployedContractInfo, useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 import { notification } from "~~/utils/scaffold-eth";
+import { contracts } from "~~/utils/scaffold-eth/contract";
 
 type TokenComponent = {
   address: string;
@@ -17,19 +18,17 @@ type TokenComponent = {
 
 const CreateFund: NextPage = () => {
   const router = useRouter();
-  const { address: connectedAddress } = useAccount();
+  const { address: connectedAddress, chain } = useAccount();
   const [step, setStep] = useState(1);
 
   const [fundName, setFundName] = useState("");
   const [fundSymbol, setFundSymbol] = useState("");
-  const [components, setComponents] = useState<TokenComponent[]>([
-    { address: "", weight: "" },
-  ]);
+  const [components, setComponents] = useState<TokenComponent[]>([{ address: "", weight: "" }]);
 
   const { data: etiBalance } = useScaffoldReadContract({
     contractName: "ETIToken",
     functionName: "balanceOf",
-    args: connectedAddress ? [connectedAddress] : undefined,
+    args: [connectedAddress] as const,
   });
 
   const { data: creationFee } = useScaffoldReadContract({
@@ -78,12 +77,12 @@ const CreateFund: NextPage = () => {
   };
 
   const validateStep2 = () => {
-    if (components.some((c) => !c.address.trim() || !isAddress(c.address))) {
+    if (components.some(c => !c.address.trim() || !isAddress(c.address))) {
       notification.error("Please enter valid token addresses");
       return false;
     }
 
-    if (components.some((c) => !c.weight.trim() || parseFloat(c.weight) <= 0)) {
+    if (components.some(c => !c.weight.trim() || parseFloat(c.weight) <= 0)) {
       notification.error("Please enter valid weights (greater than 0)");
       return false;
     }
@@ -94,7 +93,7 @@ const CreateFund: NextPage = () => {
       return false;
     }
 
-    const uniqueAddresses = new Set(components.map((c) => c.address.toLowerCase()));
+    const uniqueAddresses = new Set(components.map(c => c.address.toLowerCase()));
     if (uniqueAddresses.size !== components.length) {
       notification.error("Duplicate token addresses are not allowed");
       return false;
@@ -144,12 +143,60 @@ const CreateFund: NextPage = () => {
     if (!validateStep2()) return;
 
     try {
-      const tokenAddresses = components.map((c) => c.address as `0x${string}`);
+      const tokenAddresses = components.map(c => c.address as `0x${string}`);
 
-      await createFund({
-        functionName: "createFund",
-        args: [fundName, fundSymbol, tokenAddresses],
-      });
+      await createFund(
+        {
+          functionName: "createFund",
+          args: [fundName, fundSymbol, tokenAddresses],
+        },
+        {
+          onBlockConfirmation: async receipt => {
+            try {
+              const chainId = chain?.id;
+              const factoryAbi =
+                (fundFactoryContract?.abi as Abi | undefined) ||
+                (chainId ? (contracts?.[chainId]?.FundFactory?.abi as Abi | undefined) : undefined);
+              if (!factoryAbi) return;
+
+              const events = parseEventLogs({
+                abi: factoryAbi,
+                eventName: "FundCreated",
+                logs: receipt.logs,
+              });
+
+              const created = events[0];
+              if (!created) return;
+
+              const {
+                fundId,
+                fundAddress,
+                fundName: emittedName,
+                fundTicker,
+                underlyingTokens,
+                creator,
+              } = created.args as any;
+
+              await fetch("/api/funds", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  fundId: Number(fundId ?? 0),
+                  fundAddress,
+                  fundName: emittedName,
+                  fundTicker,
+                  underlyingTokens,
+                  creator,
+                  chainId,
+                  txHash: receipt.transactionHash,
+                }),
+              });
+            } catch (storeError) {
+              console.error("Failed to persist fund metadata:", storeError);
+            }
+          },
+        },
+      );
 
       notification.success("Fund created successfully!");
       router.push("/funds");
@@ -187,7 +234,7 @@ const CreateFund: NextPage = () => {
                 placeholder="e.g., Blue Chip Index"
                 className="input input-bordered"
                 value={fundName}
-                onChange={(e) => setFundName(e.target.value)}
+                onChange={e => setFundName(e.target.value)}
               />
             </div>
 
@@ -200,7 +247,7 @@ const CreateFund: NextPage = () => {
                 placeholder="e.g., BCI"
                 className="input input-bordered"
                 value={fundSymbol}
-                onChange={(e) => setFundSymbol(e.target.value.toUpperCase())}
+                onChange={e => setFundSymbol(e.target.value.toUpperCase())}
               />
             </div>
 
@@ -226,10 +273,7 @@ const CreateFund: NextPage = () => {
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-semibold">Token {index + 1}</span>
                   {components.length > 1 && (
-                    <button
-                      className="btn btn-ghost btn-sm btn-circle"
-                      onClick={() => removeComponent(index)}
-                    >
+                    <button className="btn btn-ghost btn-sm btn-circle" onClick={() => removeComponent(index)}>
                       <TrashIcon className="h-4 w-4" />
                     </button>
                   )}
@@ -243,7 +287,7 @@ const CreateFund: NextPage = () => {
                     <AddressInput
                       placeholder="0x..."
                       value={component.address}
-                      onChange={(value) => updateComponent(index, "address", value)}
+                      onChange={value => updateComponent(index, "address", value)}
                     />
                   </div>
 
@@ -256,7 +300,7 @@ const CreateFund: NextPage = () => {
                       placeholder="e.g., 50"
                       className="input input-bordered"
                       value={component.weight}
-                      onChange={(e) => updateComponent(index, "weight", e.target.value)}
+                      onChange={e => updateComponent(index, "weight", e.target.value)}
                       step="0.01"
                       min="0"
                       max="100"
@@ -361,7 +405,7 @@ const CreateFund: NextPage = () => {
 
               {!hasEnoughETI && (
                 <div className="alert alert-warning">
-                  <span>You don't have enough ETI to create a fund. Please acquire ETI first.</span>
+                  <span>You don&apos;t have enough ETI to create a fund. Please acquire ETI first.</span>
                 </div>
               )}
 

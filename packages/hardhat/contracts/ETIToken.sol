@@ -10,10 +10,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @author Ether Index
  */
 contract ETIToken is ERC20, Ownable {
-    uint256 public constant TOTAL_SUPPLY = 1_000_000_000 * 10**18; // 1 billion tokens with 18 decimals
+    uint256 public constant TOTAL_SUPPLY = 1_000_000_000 * 10 ** 18; // 1 billion tokens with 18 decimals
 
     constructor(address initialOwner) ERC20("Ether Index", "ETI") Ownable(initialOwner) {
-        _mint(initialOwner, 1_000_000 * 10**18); // Mint 1M for initial owner for testing
+        _mint(initialOwner, 1_000_000 * 10 ** 18); // Mint 1M for initial owner for testing
     }
 
     /**

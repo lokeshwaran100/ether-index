@@ -67,9 +67,7 @@ const Home: NextPage = () => {
                   2
                 </div>
                 <h3 className="text-xl font-semibold mb-2">Choose or Create</h3>
-                <p className="text-base-content/70">
-                  Browse existing index funds or create your own custom portfolio
-                </p>
+                <p className="text-base-content/70">Browse existing index funds or create your own custom portfolio</p>
               </div>
               <div className="flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-full bg-primary text-primary-content flex items-center justify-center text-2xl font-bold mb-4">

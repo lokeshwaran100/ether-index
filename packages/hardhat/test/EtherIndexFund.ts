@@ -1,6 +1,8 @@
 import { expect } from "chai";
+import { createRequire } from "module";
 import { readFileSync } from "fs";
 import { ethers } from "hardhat";
+import mockPythAbi from "@pythnetwork/pyth-sdk-solidity/abis/MockPyth.json";
 
 describe("EtherIndexFund full flow", function () {
   it("deploys, creates a fund, buys, rebalances, and sells in one test", async function () {
@@ -11,16 +13,11 @@ describe("EtherIndexFund full flow", function () {
     const user = signers[1] ?? deployer;
     const treasury = signers[2] ?? deployer;
 
-    // Deploy mocks
-    // Use ABI/bytecode from pyth-sdk-solidity package
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mockPythAbi = require("@pythnetwork/pyth-sdk-solidity/abis/MockPyth.json");
+    // Deploy mocks using ABI/bytecode from pyth-sdk-solidity package
+    const moduleRequire = createRequire(import.meta.url);
     const mockPythBytecode =
       "0x" +
-      readFileSync(
-        require.resolve("@pythnetwork/pyth-sdk-solidity/build/MockPyth_sol_MockPyth.bin"),
-        "utf8",
-      );
+      readFileSync(moduleRequire.resolve("@pythnetwork/pyth-sdk-solidity/build/MockPyth_sol_MockPyth.bin"), "utf8");
     const MockPyth = new ethers.ContractFactory(mockPythAbi, mockPythBytecode, deployer);
     const mockPyth = await MockPyth.deploy(60, 0);
     await mockPyth.waitForDeployment();

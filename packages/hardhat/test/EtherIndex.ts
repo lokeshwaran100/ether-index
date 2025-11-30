@@ -12,12 +12,6 @@ const FEED_ID_WBTC = process.env.TESTNET_FEED_ID_WBTC ?? "";
 const FEED_ID_USDC = process.env.TESTNET_FEED_ID_USDC ?? "";
 const PYTH_CONTRACT = process.env.TESTNET_PYTH_NETWORK_CONTRACT ?? "";
 
-function assertAddress(label: string, addr: string) {
-  if (!addr || addr === ethers.ZeroAddress) {
-    throw new Error(`Missing ${label} address. Set env var for ${label}.`);
-  }
-}
-
 describe("Testnet Integration (single test end-to-end)", function () {
   it("deploys, configures, creates fund, buys, rebalances, sells, and updates admin settings", async function () {
     // Ensure addresses are provided when running on real testnet
@@ -31,7 +25,7 @@ describe("Testnet Integration (single test end-to-end)", function () {
       ["TESTNET_FEED_ID_USDC", FEED_ID_USDC],
       ["TESTNET_PYTH_NETWORK_CONTRACT", PYTH_CONTRACT],
     ];
-    for (const [label, value] of required) {
+    for (const [, value] of required) {
       if (!value || value === ethers.ZeroAddress) {
         this.skip();
       }

@@ -30,7 +30,7 @@ contract PythOracle is IOracle {
      */
     function updatePriceFeeds(bytes[] calldata priceUpdateData) external payable {
         uint256 fee = pyth.getUpdateFee(priceUpdateData);
-        pyth.updatePriceFeeds{value: fee}(priceUpdateData);
+        pyth.updatePriceFeeds{ value: fee }(priceUpdateData);
     }
 
     function getPrice(address token) external view override returns (uint256 price) {

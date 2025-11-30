@@ -73,7 +73,8 @@ const deployEtherIndex: DeployFunction = async function (hre: HardhatRuntimeEnvi
       },
       pythContract: process.env.MAINNET_PYTH_NETWORK_CONTRACT ?? "0x4305FB66699C3B2702D4d05CF36551390A4c69C6",
       priceIds: {
-        native: process.env.MAINNET_FEED_ID_NATIVE ?? "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
+        native:
+          process.env.MAINNET_FEED_ID_NATIVE ?? "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
         weth: process.env.MAINNET_FEED_ID_WETH ?? "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
         wbtc: process.env.MAINNET_FEED_ID_WBTC ?? "0xc5e0e0c92116c0c070a242b254270441a6201af680a33e0381561c59db3266c9",
         usdc: process.env.MAINNET_FEED_ID_USDC ?? "0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a",
@@ -91,7 +92,8 @@ const deployEtherIndex: DeployFunction = async function (hre: HardhatRuntimeEnvi
       },
       pythContract: process.env.MAINNET_PYTH_NETWORK_CONTRACT ?? "0x4305FB66699C3B2702D4d05CF36551390A4c69C6",
       priceIds: {
-        native: process.env.MAINNET_FEED_ID_NATIVE ?? "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
+        native:
+          process.env.MAINNET_FEED_ID_NATIVE ?? "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
         weth: process.env.MAINNET_FEED_ID_WETH ?? "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
         wbtc: process.env.MAINNET_FEED_ID_WBTC ?? "0xc5e0e0c92116c0c070a242b254270441a6201af680a33e0381561c59db3266c9",
         usdc: process.env.MAINNET_FEED_ID_USDC ?? "0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a",
@@ -109,7 +111,8 @@ const deployEtherIndex: DeployFunction = async function (hre: HardhatRuntimeEnvi
       },
       pythContract: process.env.MAINNET_PYTH_NETWORK_CONTRACT ?? "0x4305FB66699C3B2702D4d05CF36551390A4c69C6",
       priceIds: {
-        native: process.env.MAINNET_FEED_ID_NATIVE ?? "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
+        native:
+          process.env.MAINNET_FEED_ID_NATIVE ?? "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
         weth: process.env.MAINNET_FEED_ID_WETH ?? "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
         wbtc: process.env.MAINNET_FEED_ID_WBTC ?? "0xc5e0e0c92116c0c070a242b254270441a6201af680a33e0381561c59db3266c9",
         usdc: process.env.MAINNET_FEED_ID_USDC ?? "0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a",
@@ -151,9 +154,12 @@ const deployEtherIndex: DeployFunction = async function (hre: HardhatRuntimeEnvi
   const priceIds = {
     native: priceIdOrThrow("native/USD feed id", config.priceIds.native),
     weth: priceIdOrThrow("WETH/USD feed id", config.priceIds.weth),
-    wbtc: config.tokens.wbtc && config.priceIds.wbtc ? ethers.hexlify(ethers.getBytes(config.priceIds.wbtc)) : undefined,
-    usdc: config.tokens.usdc && config.priceIds.usdc ? ethers.hexlify(ethers.getBytes(config.priceIds.usdc)) : undefined,
-    usdt: config.tokens.usdt && config.priceIds.usdt ? ethers.hexlify(ethers.getBytes(config.priceIds.usdt)) : undefined,
+    wbtc:
+      config.tokens.wbtc && config.priceIds.wbtc ? ethers.hexlify(ethers.getBytes(config.priceIds.wbtc)) : undefined,
+    usdc:
+      config.tokens.usdc && config.priceIds.usdc ? ethers.hexlify(ethers.getBytes(config.priceIds.usdc)) : undefined,
+    usdt:
+      config.tokens.usdt && config.priceIds.usdt ? ethers.hexlify(ethers.getBytes(config.priceIds.usdt)) : undefined,
   };
 
   console.log("Deploying ETI Token...");
